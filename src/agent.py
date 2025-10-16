@@ -21,17 +21,17 @@ import os
 # ============================================================================
 
 # API Keys
-APOLLO_API_KEY = "zkZ9TI5jBY2ZkqxiZwof1g"
-INSTANTLY_API_KEY = "YjUzNzFjY2EtZGNiNC00OTIzLTgxZGYtZDg1Nzc3YzY5OTg3OlRvZHBXZm9Fb2xqUA=="
+APOLLO_API_KEY = "YOUR_APOLLO_API_KEY_HERE"
+INSTANTLY_API_KEY = "YOUR_INSTANTLY_API_KEY_HERE"
 
 # Inframail API Configuration
-INFRAMAIL_API_KEY = "inf_5721608913cf5d15e4fddb7b8e3257f03d3b7c47ce3b0f5418335f5b13059e1a"
-INFRAMAIL_CUSTOMER_ID = "31761933"
-INFRAMAIL_PROFILE_ID = "2b25dd6a-7c8a-42ba-aabf-23780350b865"
-INFRAMAIL_HOST_ORDER_ID = "1755058187025"
+INFRAMAIL_API_KEY = "YOUR_INFRAMAIL_API_KEY_HERE"
+INFRAMAIL_CUSTOMER_ID = "YOUR_CUSTOMER_ID_HERE"
+INFRAMAIL_PROFILE_ID = "YOUR_PROFILE_ID_HERE"
+INFRAMAIL_HOST_ORDER_ID = "YOUR_HOST_ORDER_ID_HERE"
 
 # Campaign Settings
-INSTANTLY_CAMPAIGN_ID = "1dfdc50b-465a-4cea-8a33-d80ef0a3e010"
+INSTANTLY_CAMPAIGN_ID = "YOUR_CAMPAIGN_ID_HERE"
 TARGET_LOCATION = "United States"
 
 # Safe Ramp Schedule
@@ -41,11 +41,9 @@ TARGET_TOTAL_ACCOUNTS = 100
 
 # Your existing domains
 EXISTING_DOMAINS = [
-    "mikeeaipro.com",
-    "elitemikeeai.com",
-    "alphamikeeai.com",
-    "primemikeeai.com",
-    "mikeeaiproconnect.com"
+    "yourdomain1.com",
+    "yourdomain2.com",
+    "yourdomain3.com"
 ]
 
 # Realistic name lists for email accounts
