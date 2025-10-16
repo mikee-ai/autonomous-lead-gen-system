@@ -1,0 +1,16 @@
+[Unit]
+Description=Autonomous Lead Generation Agent
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/lead_agent
+Environment="PATH=/opt/lead_agent/venv/bin"
+ExecStart=/opt/lead_agent/venv/bin/python3 /opt/lead_agent/src/agent.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+
