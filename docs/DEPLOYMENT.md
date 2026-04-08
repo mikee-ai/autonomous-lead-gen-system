@@ -9,12 +9,40 @@ This guide will walk you through deploying the Autonomous Lead Generation System
 *   API keys for Apollo.io, Instantly.ai, and Inframail.
 *   At least one domain name configured in your Inframail account.
 
+## Step 0: Set Up SSH Keys (Optional, Recommended)
+
+If you want passwordless SSH access to your VPS, run the SSH setup script **on your local machine** before connecting:
+
+```bash
+bash scripts/setup-ssh.sh
+```
+
+This will:
+
+*   Generate an Ed25519 SSH key pair (if you don't have one).
+*   Copy the public key to your VPS.
+*   Create an SSH shortcut so you can connect with just `ssh lead-gen-vps`.
+
+After running the script, you can connect with:
+
+```bash
+ssh lead-gen-vps
+```
+
+If you skip this step, you can still connect with a password as shown in Step 1.
+
 ## Step 1: Connect to Your VPS
 
 Connect to your VPS via SSH:
 
 ```bash
 ssh root@YOUR_SERVER_IP
+```
+
+Or, if you ran the SSH setup script (Step 0):
+
+```bash
+ssh lead-gen-vps
 ```
 
 ## Step 2: Download the Package
