@@ -16,35 +16,33 @@ from typing import List, Dict, Any, Optional
 import sys
 import os
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
+# Add project root to path for config imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# API Keys
-APOLLO_API_KEY = "YOUR_APOLLO_API_KEY_HERE"
-INSTANTLY_API_KEY = "YOUR_INSTANTLY_API_KEY_HERE"
+from config.config import (
+    APOLLO_API_KEY,
+    INSTANTLY_API_KEY,
+    INFRAMAIL_API_KEY,
+    INFRAMAIL_CUSTOMER_ID,
+    INFRAMAIL_PROFILE_ID,
+    INFRAMAIL_HOST_ORDER_ID,
+    INSTANTLY_CAMPAIGN_ID,
+    TARGET_LOCATION,
+    EMAILS_PER_ACCOUNT_PER_DAY,
+    ACCOUNTS_TO_CREATE_PER_DAY,
+    TARGET_TOTAL_ACCOUNTS,
+    EXISTING_DOMAINS,
+)
 
-# Inframail API Configuration
-INFRAMAIL_API_KEY = "YOUR_INFRAMAIL_API_KEY_HERE"
-INFRAMAIL_CUSTOMER_ID = "YOUR_CUSTOMER_ID_HERE"
-INFRAMAIL_PROFILE_ID = "YOUR_PROFILE_ID_HERE"
-INFRAMAIL_HOST_ORDER_ID = "YOUR_HOST_ORDER_ID_HERE"
+# Import optional advanced config with defaults
+try:
+    from config.config import PERSON_TITLES, ORGANIZATION_EMPLOYEE_RANGES
+except ImportError:
+    PERSON_TITLES = ["Owner", "Founder", "Co-Founder", "Managing Partner", "CEO"]
+    ORGANIZATION_EMPLOYEE_RANGES = ["11,20", "21,50", "51,100", "101,200"]
 
-# Campaign Settings
-INSTANTLY_CAMPAIGN_ID = "YOUR_CAMPAIGN_ID_HERE"
-TARGET_LOCATION = "United States"
-
-# Safe Ramp Schedule
-EMAILS_PER_ACCOUNT_PER_DAY = 20
-ACCOUNTS_TO_CREATE_PER_DAY = 20
-TARGET_TOTAL_ACCOUNTS = 100
-
-# Your existing domains
-EXISTING_DOMAINS = [
-    "yourdomain1.com",
-    "yourdomain2.com",
-    "yourdomain3.com"
-]
+# Import credit-safe Apollo manager
+from apollo_credit_safe import CreditSafeApolloManager
 
 # Realistic name lists for email accounts
 FIRST_NAMES = [
@@ -253,56 +251,8 @@ class InstantlyManager:
             return False
 
 # ============================================================================
-# APOLLO MANAGER
+# APOLLO MANAGER - Uses CreditSafeApolloManager from apollo_credit_safe.py
 # ============================================================================
-
-class ApolloManager:
-    """Manages Apollo.io lead generation"""
-    
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.headers = {"Content-Type": "application/json", "Cache-Control": "no-cache"}
-    
-    def search_business_owners(self, limit: int = 100) -> List[Dict]:
-        """Search for business owners"""
-        payload = {
-            "api_key": self.api_key,
-            "person_titles": ["Owner", "Founder", "Co-Founder", "Managing Partner"],
-            "person_locations": [TARGET_LOCATION],
-            "organization_num_employees_ranges": ["11,20", "21,50", "51,100"],
-            "page": 1,
-            "per_page": min(limit, 100)
-        }
-        
-        try:
-            response = requests.post(APOLLO_SEARCH_URL, headers=self.headers, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('people', [])
-            return []
-        except Exception as e:
-            logger.error(f"Apollo search error: {e}")
-            return []
-    
-    def enrich_person(self, first_name: str, last_name: str, company: str) -> Optional[str]:
-        """Enrich person data to get email"""
-        payload = {
-            "api_key": self.api_key,
-            "first_name": first_name,
-            "last_name": last_name,
-            "organization_name": company,
-            "reveal_personal_emails": True
-        }
-        
-        try:
-            response = requests.post(APOLLO_ENRICH_URL, headers=self.headers, json=payload)
-            if response.status_code == 200:
-                data = response.json()
-                person = data.get('person', {})
-                return person.get('email')
-            return None
-        except:
-            return None
 
 # ============================================================================
 # AUTONOMOUS AGENT
@@ -319,7 +269,7 @@ class AutonomousLeadAgent:
             INFRAMAIL_HOST_ORDER_ID
         )
         self.instantly = InstantlyManager(INSTANTLY_API_KEY)
-        self.apollo = ApolloManager(APOLLO_API_KEY)
+        self.apollo = CreditSafeApolloManager(APOLLO_API_KEY)
         
         self.stats = {
             'accounts_created': 0,
@@ -388,43 +338,58 @@ class AutonomousLeadAgent:
         return created_count
     
     def import_leads(self, num_leads: int) -> int:
-        """Import leads from Apollo to Instantly"""
+        """Import leads from Apollo to Instantly using credit-safe manager"""
         logger.info(f"\n{'='*60}")
-        logger.info(f"IMPORTING {num_leads} LEADS")
+        logger.info(f"IMPORTING {num_leads} LEADS (Credit-Safe Mode)")
         logger.info(f"{'='*60}\n")
-        
+
         imported = 0
         batch_size = 100
         batches = (num_leads + batch_size - 1) // batch_size
-        
+
         for batch in range(batches):
             batch_limit = min(batch_size, num_leads - imported)
-            
+
             logger.info(f"\nBatch {batch+1}/{batches} - Searching for {batch_limit} business owners...")
-            people = self.apollo.search_business_owners(batch_limit)
-            
+            people = self.apollo.search_with_validation(
+                person_titles=PERSON_TITLES,
+                person_locations=[TARGET_LOCATION],
+                org_size_ranges=ORGANIZATION_EMPLOYEE_RANGES,
+                limit=batch_limit
+            )
+
             for person in people:
                 if imported >= num_leads:
                     break
-                
+
                 first_name = person.get('first_name', '')
                 last_name = person.get('last_name', '')
                 company = person.get('organization_name', '')
                 email = person.get('email')
-                
-                if not email or '@' not in email:
-                    # Try to enrich
-                    email = self.apollo.enrich_person(first_name, last_name, company)
-                
-                if email and '@' in email:
+
+                if not email or not self.apollo.validate_email(email):
+                    # Try to enrich with retry logic and caching
+                    enriched = self.apollo.enrich_with_retry(first_name, last_name, company)
+                    email = enriched.get('email') if enriched else None
+
+                if email and self.apollo.validate_email(email):
                     if self.instantly.add_lead(email, first_name, company):
                         imported += 1
                         self.stats['leads_imported'] += 1
                         if imported % 10 == 0:
                             logger.info(f"   Imported {imported}/{num_leads} leads...")
-                
+
                 time.sleep(0.5)  # Rate limiting
-        
+
+        # Log Apollo credit usage stats
+        apollo_stats = self.apollo.get_session_stats()
+        logger.info(f"\nApollo Credit Usage:")
+        logger.info(f"  Credits used: {apollo_stats['credits_used']}")
+        logger.info(f"  Successful enrichments: {apollo_stats['successful_enrichments']}")
+        logger.info(f"  Failed enrichments: {apollo_stats['failed_enrichments']}")
+        logger.info(f"  Cache hits: {apollo_stats['cache_size']}")
+        logger.info(f"  Success rate: {apollo_stats['success_rate']}")
+
         return imported
     
     def run(self):
