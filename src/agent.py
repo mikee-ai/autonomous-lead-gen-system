@@ -273,7 +273,7 @@ class ApolloManager:
             "page": 1,
             "per_page": min(limit, 100)
         }
-        
+
         try:
             response = requests.post(APOLLO_SEARCH_URL, headers=self.headers, json=payload)
             if response.status_code == 200:
@@ -283,6 +283,53 @@ class ApolloManager:
         except Exception as e:
             logger.error(f"Apollo search error: {e}")
             return []
+
+    def search_vps(self, limit: int = 54) -> List[Dict]:
+        """Search for VP-level decision makers (Vice Presidents)."""
+        vp_titles = [
+            "VP",
+            "Vice President",
+            "VP of Sales",
+            "VP of Marketing",
+            "VP of Operations",
+            "VP of Engineering",
+            "VP of Product",
+            "VP of Business Development",
+            "Senior Vice President",
+            "Executive Vice President",
+        ]
+
+        people: List[Dict] = []
+        page = 1
+        per_page = min(limit, 100)
+
+        while len(people) < limit:
+            payload = {
+                "api_key": self.api_key,
+                "person_titles": vp_titles,
+                "person_locations": [TARGET_LOCATION],
+                "organization_num_employees_ranges": ["51,100", "101,200", "201,500", "501,1000"],
+                "page": page,
+                "per_page": per_page,
+            }
+
+            try:
+                response = requests.post(APOLLO_SEARCH_URL, headers=self.headers, json=payload)
+                if response.status_code != 200:
+                    logger.error(f"Apollo VP search failed: {response.status_code} {response.text}")
+                    break
+
+                batch = response.json().get('people', [])
+                if not batch:
+                    break
+
+                people.extend(batch)
+                page += 1
+            except Exception as e:
+                logger.error(f"Apollo VP search error: {e}")
+                break
+
+        return people[:limit]
     
     def enrich_person(self, first_name: str, last_name: str, company: str) -> Optional[str]:
         """Enrich person data to get email"""
@@ -427,6 +474,45 @@ class AutonomousLeadAgent:
         
         return imported
     
+    def connect_vps(self, num_vps: int = 54) -> int:
+        """Find VP-level prospects via Apollo and import them to the Instantly campaign."""
+        logger.info(f"\n{'='*60}")
+        logger.info(f"CONNECTING TO {num_vps} VPs")
+        logger.info(f"{'='*60}\n")
+
+        people = self.apollo.search_vps(limit=num_vps)
+        logger.info(f"Apollo returned {len(people)} VP candidates")
+
+        connected = 0
+        for person in people:
+            if connected >= num_vps:
+                break
+
+            first_name = person.get('first_name', '')
+            last_name = person.get('last_name', '')
+            company = person.get('organization_name', '')
+            title = person.get('title', '')
+            email = person.get('email')
+
+            if not email or '@' not in email:
+                email = self.apollo.enrich_person(first_name, last_name, company)
+
+            if not email or '@' not in email:
+                logger.debug(f"Skipping {first_name} {last_name} - no email")
+                continue
+
+            if self.instantly.add_lead(email, first_name, company):
+                connected += 1
+                self.stats['leads_imported'] += 1
+                logger.info(f"   ✓ [{connected}/{num_vps}] {first_name} {last_name} ({title}) @ {company}")
+            else:
+                logger.warning(f"   ✗ Failed to add {email} to Instantly campaign")
+
+            time.sleep(0.5)
+
+        logger.info(f"\nConnected to {connected}/{num_vps} VPs")
+        return connected
+
     def run(self):
         """Main execution"""
         logger.info(f"\n{'='*60}")
