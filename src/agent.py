@@ -5,34 +5,38 @@ Uses realistic people names for better deliverability
 Author: Mikee Shattuck
 """
 
-import requests
 import json
-import time
 import logging
+import os
 import random
 import string
-from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
 import sys
-import os
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
 
-# API Keys
-APOLLO_API_KEY = "YOUR_APOLLO_API_KEY_HERE"
-INSTANTLY_API_KEY = "YOUR_INSTANTLY_API_KEY_HERE"
+APOLLO_API_KEY = os.environ.get("APOLLO_API_KEY", "YOUR_APOLLO_API_KEY_HERE")
+INSTANTLY_API_KEY = os.environ.get("INSTANTLY_API_KEY", "YOUR_INSTANTLY_API_KEY_HERE")
 
-# Inframail API Configuration
-INFRAMAIL_API_KEY = "YOUR_INFRAMAIL_API_KEY_HERE"
-INFRAMAIL_CUSTOMER_ID = "YOUR_CUSTOMER_ID_HERE"
-INFRAMAIL_PROFILE_ID = "YOUR_PROFILE_ID_HERE"
-INFRAMAIL_HOST_ORDER_ID = "YOUR_HOST_ORDER_ID_HERE"
+INFRAMAIL_API_KEY = os.environ.get("INFRAMAIL_API_KEY", "YOUR_INFRAMAIL_API_KEY_HERE")
+INFRAMAIL_CUSTOMER_ID = os.environ.get("INFRAMAIL_CUSTOMER_ID", "YOUR_CUSTOMER_ID_HERE")
+INFRAMAIL_PROFILE_ID = os.environ.get("INFRAMAIL_PROFILE_ID", "YOUR_PROFILE_ID_HERE")
+INFRAMAIL_HOST_ORDER_ID = os.environ.get("INFRAMAIL_HOST_ORDER_ID", "YOUR_HOST_ORDER_ID_HERE")
 
-# Campaign Settings
-INSTANTLY_CAMPAIGN_ID = "YOUR_CAMPAIGN_ID_HERE"
-TARGET_LOCATION = "United States"
+INSTANTLY_CAMPAIGN_ID = os.environ.get("INSTANTLY_CAMPAIGN_ID", "YOUR_CAMPAIGN_ID_HERE")
+TARGET_LOCATION = os.environ.get("TARGET_LOCATION", "United States")
+
+LOG_DIR = os.environ.get("LEAD_AGENT_LOG_DIR", "/opt/lead_agent/logs")
 
 # Safe Ramp Schedule
 EMAILS_PER_ACCOUNT_PER_DAY = 20
@@ -74,11 +78,12 @@ INSTANTLY_CAMPAIGN_URL = f"https://api.instantly.ai/api/v2/campaigns/{INSTANTLY_
 INFRAMAIL_EMAIL_URL = "https://app.inframail.io/api/v1/host/operations/email"
 
 # Logging
+Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(f'/root/lead_agent/logs/agent_{datetime.now().strftime("%Y%m%d")}.log'),
+        logging.FileHandler(os.path.join(LOG_DIR, f'agent_{datetime.now().strftime("%Y%m%d")}.log')),
         logging.StreamHandler()
     ]
 )
