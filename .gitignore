@@ -11,8 +11,11 @@ ENV/
 dist/
 build/
 
-# Configuration
+# Configuration / secrets
 config/config.py
+.env
+.env.local
+.env.*.local
 
 # Logs
 *.log

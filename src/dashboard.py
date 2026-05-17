@@ -1,26 +1,40 @@
 """
 Real-Time AI Agent Dashboard
 Beautiful web interface to watch your autonomous agent work
-
-Access at: http://31.97.145.136:8080
 """
 
-from flask import Flask, render_template, jsonify
-import requests
-import json
-from datetime import datetime
 import os
+from datetime import datetime
 
-app = Flask(__name__)
+import requests
+from dotenv import load_dotenv
+from flask import Flask, jsonify, render_template
 
-# API Keys
-APOLLO_API_KEY = "zkZ9TI5jBY2ZkqxiZwof1g"
-INSTANTLY_API_KEY = "YjUzNzFjY2EtZGNiNC00OTIzLTgxZGYtZDg1Nzc3YzY5OTg3OlRvZHBXZm9Fb2xqUA=="
-INFRAMAIL_API_KEY = "inf_5721608913cf5d15e4fddb7b8e3257f03d3b7c47ce3b0f5418335f5b13059e1a"
-INFRAMAIL_CUSTOMER_ID = "31761933"
-INFRAMAIL_PROFILE_ID = "2b25dd6a-7c8a-42ba-aabf-23780350b865"
-INFRAMAIL_HOST_ORDER_ID = "1755058187025"
-INSTANTLY_CAMPAIGN_ID = "1dfdc50b-465a-4cea-8a33-d80ef0a3e010"
+load_dotenv()
+
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, template_folder=SRC_DIR)
+
+
+def _require_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise RuntimeError(
+            f"Missing required environment variable: {name}. "
+            f"Set it in the shell or in a .env file before starting the dashboard."
+        )
+    return value
+
+
+APOLLO_API_KEY = _require_env("APOLLO_API_KEY")
+INSTANTLY_API_KEY = _require_env("INSTANTLY_API_KEY")
+INFRAMAIL_API_KEY = _require_env("INFRAMAIL_API_KEY")
+INFRAMAIL_CUSTOMER_ID = _require_env("INFRAMAIL_CUSTOMER_ID")
+INFRAMAIL_PROFILE_ID = _require_env("INFRAMAIL_PROFILE_ID")
+INFRAMAIL_HOST_ORDER_ID = _require_env("INFRAMAIL_HOST_ORDER_ID")
+INSTANTLY_CAMPAIGN_ID = _require_env("INSTANTLY_CAMPAIGN_ID")
+
+LOG_FILE = os.environ.get("LEAD_AGENT_LOG_FILE", "/root/lead_agent/logs/with_campaign_assignment.log")
 
 @app.route('/')
 def dashboard():
@@ -82,10 +96,9 @@ def get_stats():
     
     # Read latest log
     log_lines = []
-    log_file = '/root/lead_agent/logs/with_campaign_assignment.log'
-    if os.path.exists(log_file):
+    if os.path.exists(LOG_FILE):
         try:
-            with open(log_file, 'r') as f:
+            with open(LOG_FILE, 'r') as f:
                 log_lines = f.readlines()[-50:]  # Last 50 lines
         except:
             pass
@@ -138,9 +151,6 @@ def get_accounts():
     return jsonify({'accounts': accounts})
 
 if __name__ == '__main__':
-    # Create templates directory
-    os.makedirs('templates', exist_ok=True)
-    
-    # Run on all interfaces so it's accessible from outside
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    port = int(os.environ.get("DASHBOARD_PORT", "8080"))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
